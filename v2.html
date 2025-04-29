@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Draggable Card Deck v2</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        background-color: #f0f0f0;
+        font-family: Arial, sans-serif;
+      }
+
+      .deck-container {
+        position: relative;
+        width: 300px;
+        height: 400px;
+        perspective: 1000px;
+      }
+
+      .card {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+        cursor: grab;
+        user-select: none;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 24px;
+        font-weight: bold;
+        color: white;
+        transition: transform 0.1s;
+      }
+
+      .card.dragging {
+        cursor: grabbing;
+        z-index: 1000;
+        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+      }
+
+      .card.move-to-back {
+        transition: transform 0.5s ease-in-out, opacity 0.2s ease-in-out;
+        z-index: -1;
+        opacity: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="deck-container" id="deck-container"></div>
+
+    <script>
+      // Card colors and initial positions
+      const cardColors = [
+        "#FF6B6B",
+        "#4ECDC4",
+        "#45B7D1",
+        "#FFA5A5",
+        "#97D8B2",
+        "#FFBE76",
+        "#BADC58",
+        "#F8A5C2",
+        "#778BEB",
+        "#786FA6",
+      ];
+
+      const deckContainer = document.getElementById("deck-container");
+      let cards = [];
+      let currentZ = cardColors.length;
+
+      // Create cards
+      cardColors.forEach((color, index) => {
+        const card = document.createElement("div");
+        card.className = "card";
+        card.style.backgroundColor = color;
+        card.style.transform = `translateX(${getRandomOffset(
+          -5,
+          5
+        )}px) translateY(${getRandomOffset(-5, 5)}px) rotate(${getRandomOffset(
+          -3,
+          3
+        )}deg)`;
+        card.style.zIndex = cardColors.length - index;
+        card.textContent = index + 1;
+
+        cards.push(card);
+        deckContainer.appendChild(card);
+
+        // Make card draggable
+        makeCardDraggable(card);
+      });
+
+      function getRandomOffset(min, max) {
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+      }
+
+      function makeCardDraggable(card) {
+        let isDragging = false;
+        let startX, startY;
+        let initialTransform = "";
+        let currentX = 0,
+          currentY = 0,
+          currentRotation = 0;
+
+        // Extract current translation and rotation from transform
+        function parseTransform() {
+          const transform = card.style.transform;
+          const translateX = transform.match(/translateX\(([-\d.]+)px\)/);
+          const translateY = transform.match(/translateY\(([-\d.]+)px\)/);
+          const rotate = transform.match(/rotate\(([-\d.]+)deg\)/);
+
+          currentX = translateX ? parseFloat(translateX[1]) : 0;
+          currentY = translateY ? parseFloat(translateY[1]) : 0;
+          currentRotation = rotate ? parseFloat(rotate[1]) : 0;
+        }
+
+        card.addEventListener("mousedown", startDrag);
+        card.addEventListener("touchstart", handleTouchStart);
+
+        function handleTouchStart(e) {
+          e.preventDefault();
+          const touch = e.touches[0];
+          startDrag(touch);
+        }
+
+        function startDrag(e) {
+          isDragging = true;
+          startX = e.clientX || e.pageX;
+          startY = e.clientY || e.pageY;
+          initialTransform = card.style.transform;
+          parseTransform();
+
+          card.classList.add("dragging");
+
+          document.addEventListener("mousemove", drag);
+          document.addEventListener("touchmove", handleTouchMove);
+          document.addEventListener("mouseup", endDrag);
+          document.addEventListener("touchend", endDrag);
+        }
+
+        function handleTouchMove(e) {
+          e.preventDefault();
+          const touch = e.touches[0];
+          drag(touch);
+        }
+
+        function drag(e) {
+          if (!isDragging) return;
+
+          const deltaX = (e.clientX || e.pageX) - startX;
+          const deltaY = (e.clientY || e.pageY) - startY;
+
+          // Calculate rotation based on horizontal movement
+          const rotationAmount = deltaX * 0.05;
+
+          card.style.transform = `translateX(${
+            currentX + deltaX
+          }px) translateY(${currentY + deltaY}px) rotate(${
+            currentRotation + rotationAmount
+          }deg)`;
+        }
+
+        function endDrag() {
+          if (!isDragging) return;
+          isDragging = false;
+
+          card.classList.remove("dragging");
+
+          const distanceFromCenter = Math.sqrt(
+            Math.pow(currentX + (startX - window.innerWidth / 2), 2) +
+              Math.pow(currentY + (startY - window.innerHeight / 2), 2)
+          );
+
+          // If dragged far enough, move to back of deck
+          if (distanceFromCenter > 100) {
+            moveCardToBack(card);
+          } else {
+            // Reset to initial position with slight randomization
+            card.style.transform = `translateX(${getRandomOffset(
+              -5,
+              5
+            )}px) translateY(${getRandomOffset(
+              -5,
+              5
+            )}px) rotate(${getRandomOffset(-3, 3)}deg)`;
+          }
+
+          document.removeEventListener("mousemove", drag);
+          document.removeEventListener("touchmove", handleTouchMove);
+          document.removeEventListener("mouseup", endDrag);
+          document.removeEventListener("touchend", endDrag);
+        }
+      }
+
+      function moveCardToBack(card) {
+        // Calculate a swooping path back to deck
+        parseTransform(card);
+        const currentPos = {
+          x: currentX,
+          y: currentY,
+          rotation: currentRotation,
+        };
+
+        // Add transition class with longer duration for swooping effect
+        card.classList.add("move-to-back");
+
+        // Animate the card in an arc path back to deck
+        const steps = 20;
+        let step = 0;
+
+        const finalX = getRandomOffset(-5, 5);
+        const finalY = getRandomOffset(-5, 5);
+        const finalRotation = getRandomOffset(-3, 3);
+
+        // Set z-index to lowest for the transition
+        card.style.zIndex = -1;
+
+        // Create arc animation
+        const arcAnimation = setInterval(() => {
+          step++;
+
+          // Calculate progress (ease-out effect)
+          const progress = 1 - Math.pow(1 - step / steps, 2);
+
+          // Calculate current position along arc
+          const currentPosX = currentPos.x + (finalX - currentPos.x) * progress;
+          const currentPosY = currentPos.y + (finalY - currentPos.y) * progress;
+
+          // Add arc movement (goes up then down)
+          const arcHeight = -120; // Arc height, negative means up
+          const arcY = arcHeight * Math.sin(progress * Math.PI);
+
+          // Calculate rotation (add extra spin for effect)
+          const spinFactor = 360; // Full spin
+          const extraRotation =
+            progress < 0.7
+              ? spinFactor * progress
+              : spinFactor * 0.7 +
+                ((progress - 0.7) * (finalRotation - spinFactor * 0.7)) / 0.3;
+
+          // Apply transform
+          card.style.transform = `translateX(${currentPosX}px) translateY(${
+            currentPosY + arcY
+          }px) rotate(${currentPos.rotation + extraRotation}deg)`;
+
+          // End animation
+          if (step >= steps) {
+            clearInterval(arcAnimation);
+
+            // Final position with slight randomization
+            card.style.transform = `translateX(${finalX}px) translateY(${finalY}px) rotate(${finalRotation}deg)`;
+            card.classList.remove("move-to-back");
+            card.style.opacity = "1";
+            currentZ++;
+            card.style.zIndex = 0;
+
+            // Reorganize all z-indices
+            setTimeout(() => {
+              reorganizeZIndices();
+            }, 50);
+          }
+        }, 16); // ~60fps
+      }
+
+      function parseTransform(card) {
+        const transform = card.style.transform;
+        const translateX = transform.match(/translateX\(([-\d.]+)px\)/);
+        const translateY = transform.match(/translateY\(([-\d.]+)px\)/);
+        const rotate = transform.match(/rotate\(([-\d.]+)deg\)/);
+
+        currentX = translateX ? parseFloat(translateX[1]) : 0;
+        currentY = translateY ? parseFloat(translateY[1]) : 0;
+        currentRotation = rotate ? parseFloat(rotate[1]) : 0;
+      }
+
+      function reorganizeZIndices() {
+        // Get all cards and sort by current z-index
+        const sortedCards = Array.from(deckContainer.children).sort(
+          (a, b) => parseInt(a.style.zIndex) - parseInt(b.style.zIndex)
+        );
+
+        // Reassign z-indices
+        sortedCards.forEach((card, index) => {
+          card.style.zIndex = index + 1;
+        });
+      }
+    </script>
+  </body>
+</html>
