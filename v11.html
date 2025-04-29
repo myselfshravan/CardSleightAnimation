@@ -41,7 +41,7 @@
         font-size: 24px;
         font-weight: bold;
         color: white;
-        transition: box-shadow 0.3s ease;
+        transition: transform 0.1s;
       }
 
       .card.dragging {
@@ -258,24 +258,24 @@
         const finalRotation = getRandomOffset(-3, 3);
 
         // Animate with arc effect
-        const steps = 100; // More steps for ultra-smooth animation
+        const steps = 30; // More steps for smoother animation
         let step = 0;
         const arcAnimation = setInterval(() => {
           step++;
 
           // Calculate progress with easing
-          const progress = 1 - Math.pow(1 - step / steps, 4); // Quartic easing for smoother deceleration
+          const progress = 1 - Math.pow(1 - step / steps, 3); // Cubic easing for buttery smoothness
 
           // Calculate current position along arc
           const newX = currentX + (finalX - currentX) * progress;
           const newY = currentY + (finalY - currentY) * progress;
 
           // Add arc movement - more subtle
-          const arcHeight = -120;
+          const arcHeight = -80; // Less arc height
           const arcY = arcHeight * Math.sin(progress * Math.PI);
 
           // Calculate rotation with a more subtle effect
-          const maxRotation = 15;
+          const maxRotation = 30; // Even less rotation
           const newRotation =
             currentRotation + (finalRotation - currentRotation) * progress;
 
@@ -299,7 +299,7 @@
             // Re-enable interaction
             card.classList.remove("animating");
           }
-        }, 8.33); // 120fps for ultra-smooth animation
+        }, 10); // Faster refresh for smoother animation (100 fps)
       }
 
       function gentlyReturnToPosition(card, finalX, finalY, finalRotation) {
@@ -317,7 +317,7 @@
         card.classList.add("animating");
 
         // Super smooth animation
-        const steps = 45; // More steps for smoother animation
+        const steps = 25; // More steps for smoother animation
         let step = 0;
         const returnAnimation = setInterval(() => {
           step++;
@@ -344,7 +344,7 @@
             // Re-enable interaction
             card.classList.remove("animating");
           }
-        }, 8.33); // 120fps for consistent smoothness
+        }, 10); // Even faster refresh for smoother animation (100 fps)
       }
       // Initialize deck
       createDeck();
